@@ -5,21 +5,23 @@ from django.core.paginator import Paginator
 from django.shortcuts import redirect, reverse
 from app.libs.base_render import render_to_response
 
+from app.utils.permission import dashboard_auth
+
 class Login(View):
     TEMPLATE = "dashboard/auth/login.html"
 
     def get(self, request):
-
-        print(dir(request.user))
         if request.user.is_authenticated:
             return redirect(reverse('dashboard_index'))
-
-        data = {'error': ''}
+        
+        to = request.GET.get('to', '')
+        data = {'error': '', 'to': to}
         return render_to_response(request, self.TEMPLATE, data=data)
 
     def post(self, request):
         username = request.POST.get('username')
         password = request.POST.get('password')
+        to = request.GET.get('to', '')
 
         data = {}
         exists = User.objects.filter(username=username).exists()
@@ -34,8 +36,11 @@ class Login(View):
         if not user.is_superuser:
             data['error'] = '你无权登陆'
             return render_to_response(request, self.TEMPLATE, data=data)
-
+        
         login(request, user)
+        if to:
+            return redirect(to)
+
         return redirect(reverse('dashboard_index'))
 
 class Logout(View):
@@ -46,11 +51,11 @@ class Logout(View):
 class AdminManger(View):
     TEMPLATE = 'dashboard/auth/admin.html'
 
+    @dashboard_auth
     def get(self, request):
-
         # users = User.objects.filter(is_superuser=True)
         users = User.objects.all()
-        page = request.GET.get('page', 2)
+        page = request.GET.get('page', 1)
         p = Paginator(users, 2)
         total_page = p.num_pages
 

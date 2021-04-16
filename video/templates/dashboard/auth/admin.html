@@ -12,6 +12,7 @@ next_page = '{}?page={}'.format(reverse('admin_manger'), page_num + 1)
 %if page_num < total:
 <a href="${next_page}">下一页</a>
 %endif
+<span>当前页数: ${page_num}</span>
 <table class="table">
     <thead>
         <tr>
