@@ -28,10 +28,11 @@ def render_to_response(request, template, data=None):
     for d in context_instance:
         result.update(d)
 
-    request.META['CSRF_COOKIE_USED'] = True
-    if request.META.get('CSRF_COOKIE', False):
-        from django.middleware.csrf import get_token
-        get_token(request)
+    # if request.META.get('CSRF_COOKIE', False):
+    #     from django.middleware.csrf import get_token
+    #     get_token(request)
+    # print(request)
     result['csrf_token'] = '<input type="hidden" name="csrfmiddlewaretoken" value={0} />'.format(request.META['CSRF_COOKIE'])
-    
+    result['request'] = request
+    # print(result)
     return HttpResponse(mako_template.render(**result))

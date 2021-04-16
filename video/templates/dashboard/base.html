@@ -1,17 +1,28 @@
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${self.title()}</title>
-    <link rel="stylesheet" href="/static/dashboard/css/bootstrap.min.css" >
-    <link rel="stylesheet" href="/static/dashboard/css/base.css">
-    ${self.css()}
-</head>
-<body>
-<%include file="nav.html" />
-<div id="base-area"></div>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${self.title()}</title>
+        <link rel="stylesheet" href="/static/dashboard/css/bootstrap.min.css" >
+        <link rel="stylesheet" href="/static/dashboard/css/base.css">
+        ${self.css()}
+    </head>
+    <body>
+        <%! from django.shortcuts import reverse %>
+        <%include file="nav.html" />
+        <div id="base-area">
+            <ul class="side-menu">
+                <li><a href="${reverse('admin_manger')}">管理员</a></li>
+                <li>用户</li>
+                <li>视频</li>
+            </ul>
+            <div class="base-content">
+                ${self.content()}
+            </div>
+        </div>
 </body>
 <script src="/static/dashboard/js/jquery-1.12.4.min.js"></script>
 <script src="/static/dashboard/js/bootstrap.min.js"></script>
