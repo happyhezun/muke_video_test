@@ -1,0 +1,25 @@
+.open-btn {
+    margin-left: 26px;
+}
+
+.video-select {
+    width: 25%;
+    display: inline-block;
+}
+
+.add-video-area {
+    width: 50%;
+    /* 内边距 */
+    padding: 10px;
+    /* 边框 */
+    border: 1px solid #cccccc;
+    /* 上边距 */
+    margin-top: 10px;
+    /* 左边距 */
+    margin-left: 20px;
+    /* 圆角 */
+    border-radius: 8px;
+    /* 隐藏 */
+    display: none;
+
+}

@@ -1,0 +1,69 @@
+<%inherit file="../base.html" />
+<%! from django.shortcuts import reverse %>
+<%def name="content()">
+<%
+from app.model.video import VideoType, FromType, NationalityType
+%>
+<h1>外链视频</h1>
+
+<button class="btn btn-info open-btn" id="open-add-video-btn">创建</button> <span>${error}</span>
+<form id="video-edit-area" class="form-horizontal edit-area add-video-area" accept="" method="post">
+    ${csrf_token}
+    <div class="form-group">
+      <div class="col-sm-10">
+        <input type="text" class="form-control" name="name" placeholder="视频名称">
+      </div>
+    </div>
+    <div class="form-group">
+        <div class="col-sm-10">
+          <input type="text" class="form-control" name="image" placeholder="海报">
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-10">
+            <label for="">视频类型</label>
+            <select class="form-control video-select" name="video_type">
+                %for video_type in VideoType:
+                <option value="${video_type.value}">${video_type.label}</option>
+                %endfor
+            </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-10">
+            <label for="">视频来源</label>
+            <select class="form-control video-select" name="from_to">
+                %for from_to in FromType:
+                %if from_to != FromType('custom'):
+                <option value="${from_to.value}">${from_to.label}</option>
+                %endif
+                %endfor
+            </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-10">
+            <label for="">国籍</label>
+            <select class="form-control video-select" name="nationality">
+                %for nationality in NationalityType:
+                <option value="${nationality.value}">${nationality.label}</option>
+                %endfor
+            </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-10">
+          <textarea name="info" class="form-control" placeholder="简介"></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-info">添加</button>
+</form>
+</%def>
+
+<%def name="css()">
+<link rel="stylesheet" href="/static/dashboard/css/externa_video.css">
+</%def>
+
+<%def name="js()">
+<script src="/static/dashboard/js/video/externa_video.js"></script>
+</%def>
