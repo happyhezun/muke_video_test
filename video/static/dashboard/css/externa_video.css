@@ -23,3 +23,15 @@
     display: none;
 
 }
+
+.video-images {
+    width: 20%;
+}
+
+.info {
+    width: 100px;
+    overflow: hidden;
+    /* 不换行 */
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

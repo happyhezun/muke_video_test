@@ -58,6 +58,38 @@ from app.model.video import VideoType, FromType, NationalityType
       </div>
       <button type="submit" class="btn btn-info">添加</button>
 </form>
+<table class="table">
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>海报</th>
+            <th>视频类型</th>
+            <th>视频来源</th>
+            <th>国籍</th>
+            <th>描述</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>修改时间</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        % for video in videos:
+        <tr>
+            <td>${video.name}</td>
+            <td> <img class="video-images" src="${video.image}" alt=""></td>
+            <td>${VideoType(video.video_type).label}</td>
+            <td>${FromType(video.from_to).label}</td>
+            <td>${NationalityType(video.nationality).label}</td>
+            <td><p class="info">${video.info}</p></td>
+            <td>${video.status}</td>
+            <td>${video.created_time}</td>
+            <td>${video.updated_time}</td>
+            <td><a href="">编辑</a>|<a href="${reverse('video_sub',kwargs={'video_id': video.id})}">附属信息</a></td>
+        </tr>
+        % endfor
+    </tbody>
+</table>
 </%def>
 
 <%def name="css()">
