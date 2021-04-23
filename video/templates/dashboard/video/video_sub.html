@@ -1,25 +1,11 @@
 <%inherit file="../base.html" />
 <%! from django.shortcuts import reverse %>
-<%! from app.model.video import IdentityType %>
+<%! from app.model.video import FromType, IdentityType %>
 <%def name="content()">
 <h1>${video.name}<span>${error}</span></h1>
-<h2>集数</h2>
-<ul>
-    %for video_sub in video.video_sub.all():
-    <li><a href="${video_sub.url}">第${video_sub.number}集</a></li>
-    %endfor
-</ul>
-<h2>演员</h2>
-<ul>
-    %for video_star in video.video_star.all():
-    <li> <a href="${reverse('star_delete', kwargs={'star_id':video_star.id, 'video_id':video.id})}">${video_star.name}:${IdentityType(video_star.identity).label}</a></li>
-    %endfor
-</ul>
-<form class="form-horizontal edit-area add-video-area add-url" action="" method="POST">${csrf_token}
-    <label for="">添加地址</label><input type="text" name="url" type="text" class="form-control">
-    <input type="submit" value="添加" name="" class="btn btn-info" id="add-url-btn">
-</form>
+
 <form class="form-horizontal edit-area add-video-area add-url" action="${reverse('video_star')}" method="POST">${csrf_token}
+    <p>演员与身份编辑区域</p>
     <label for="">演员</label><input type="text" name="name" type="text" class="form-control"> <br />
     <label for="">身份</label>
     <select name="identity" id="" class="form-control" >
@@ -30,7 +16,57 @@
     <input type="hidden" value="${video.id}" name="video_id">
     <input type="submit" value="添加" name="" class="btn btn-info" id="add-star-btn">
 </form>
+%if FromType(video.from_to) == FromType.custom:
+<form enctype="multipart/form-data" class="form-horizontal edit-area add-video-area add-url" action="" method="POST">${csrf_token}
+%else:
+<form class="form-horizontal edit-area add-video-area add-url" action="" method="POST">${csrf_token}
+%endif
+    <p>地址与选集编辑区域</p>
+    %if FromType(video.from_to) != FromType.custom:
+    <label for="">添加地址</label><input id='url' type="text" name="url" type="text" class="form-control"> <br />
+    %else:
+    <label for="">添加地址</label><input id='url' type="file" name="url" type="text" class="form-control"> <br />
+    %endif
+    <label for="">添加集数</label><input id='number' type="number" name="number" type="text" class="form-control">
+    <input id="videosubid" type="hidden" value="" name="videosub_id" />
+    <input type="submit" value="添加" name="" class="btn btn-info" id="add-url-btn">
+</form>
+
+<h2>集数</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>集数</th>
+            <th>地址</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        % for video_sub in video.video_sub.all():
+        <tr>
+            <td>第${video_sub.number}集</td>
+            <td><p class="info">${video_sub.url}</p></td>
+            <td>
+                <a class="btn btn-default" href="${video_sub.url}">查看</a>
+                <button id="update_btn" class="btn btn-default" data-id=${video_sub.id} data-url="${video_sub.url} "data-number="${video_sub.number}">编辑</button>
+                <a class="btn btn-default" href="${reverse('sub_delete', kwargs={'videosub_id':video_sub.id, 'video_id': video.id})}">删除</a>
+            </td>
+        </tr>
+        % endfor
+    </tbody>
+</table>
+<h2>演员(点击可删除)</h2>
+<ul>
+    %for video_star in video.video_star.all():
+    <li> <a href="${reverse('star_delete', kwargs={'star_id':video_star.id, 'video_id':video.id})}">${video_star.name}:${IdentityType(video_star.identity).label}</a> </li>
+    %endfor
+</ul>
+
+
 </%def>
 <%def name="css()">
 <link rel="stylesheet" href="/static/dashboard/css/video_sub.css">
+</%def>
+<%def name="js()">
+<script src="/static/dashboard/js/video/video_sub.js"></script>
 </%def>

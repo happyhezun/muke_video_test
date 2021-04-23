@@ -7,8 +7,33 @@ input, select {
     width: 50%;
     padding: 10px;
     border: 1px solid #cccccc;
+    /* 上边距 */
+    margin-top: 20px;
+    /* 下边距 */
+    margin-bottom: 20px;
+    /* 左边距 */
+    margin-left: 20px;
 }
 
 #add-url-btn, #add-star-btn{
     width: 60px !important;
+}
+
+p {
+    font-size: 20px;
+    font-style: bold;
+}
+
+.info {
+    width: 100px;
+    overflow: hidden;
+    /* 不换行 */
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-style: normal;
+    font-size: 16px;
+}
+
+li {
+    display: inline-block;
 }
