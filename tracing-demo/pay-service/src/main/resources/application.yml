@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: pay-service    # 这里的名字要改
+
+server:
+  port: 8082             # 服务 B 运行在 8082 端口
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: "http://localhost:9411/api/v2/spans"
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+

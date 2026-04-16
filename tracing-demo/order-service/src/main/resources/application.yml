@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: order-service  # 服务名，会显示在 Jaeger UI 中
+
+server:
+  port: 8081             # 服务 A 运行在 8081 端口
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0   # 100% 采样，确保 Demo 每条请求都能在 Jaeger 看到
+  zipkin:
+    tracing:
+      endpoint: "http://localhost:9411/api/v2/spans" # 这里的 localhost 是指 Jaeger 地址
+
+logging:
+  pattern:
+    # 这里的格式非常重要，它会在日志里打印 [服务名, TraceID, SpanID]
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+
