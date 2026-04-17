@@ -1,0 +1,48 @@
+version: '3.8'
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21  # 使用最新的 JDK 21 LTS 版本
+    container_name: jenkins
+    user: root                        # 以 root 运行，避免挂载目录权限问题
+    privileged: true                  # 赋予特权，确保能操作 Docker
+    ports:
+      - "6080:8080"                   # Web 界面端口
+      - "50000:50000"                 # Agent 通信端口
+    volumes:
+      - /data/jenkins_home:/var/jenkins_home  # 数据持久化
+      - /var/run/docker.sock:/var/run/docker.sock # 挂载 Docker 守护进程
+      - /usr/bin/docker:/usr/bin/docker       # 挂载 Docker 命令（可选，部分系统需要）
+    environment:
+      - TZ=Asia/Shanghai              # 设置时区
+      - JAVA_OPTS=-Duser.timezone=Asia/Shanghai -Dhudson.model.UpdateCenter.updateCenterUrl=https://mirrors.tuna.tsinghua.edu.cn/jenkins/updates/update-center.json
+      - JENKINS_UC=https://mirrors.tuna.tsinghua.edu.cn/jenkins  # 插件更新中心镜像
+      - JENKINS_UC_DOWNLOAD=https://mirrors.tuna.tsinghua.edu.cn/jenkins  # 插件下载镜像
+    restart: unless-stopped           # 异常退出时自动重启
+    networks:
+      - ci-cd-network
+    depends_on:
+      - sonarqube
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"                   # SonarQube Web 界面
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true  # 禁用 Elasticsearch 启动检查(开发环境)
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    restart: unless-stopped
+    networks:
+      - ci-cd-network
+
+networks:
+  ci-cd-network:
+    driver: bridge
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:

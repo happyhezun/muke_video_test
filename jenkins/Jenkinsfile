@@ -1,0 +1,272 @@
+pipeline {
+    agent any
+    
+    environment {
+        // SonarQube 配置
+        SONARQUBE_URL = 'http://sonarqube:9000'
+        SONARQUBE_TOKEN = credentials('sonarqube-token')
+        
+        // 镜像仓库配置
+        DOCKER_REGISTRY = 'your-registry.com'
+        IMAGE_NAME = 'your-app'
+        
+        // 测试配置
+        TEST_RESULTS_DIR = 'test-results'
+        COVERAGE_DIR = 'coverage'
+    }
+    
+    stages {
+        stage('代码检出') {
+            steps {
+                script {
+                    echo '正在检出代码...'
+                    checkout scm
+                }
+            }
+        }
+        
+        stage('代码扫描 - SonarQube') {
+            steps {
+                script {
+                    echo '开始 SonarQube 代码质量扫描...'
+                    
+                    // 执行 SonarQube 扫描
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            mvn sonar:sonar \
+                                -Dsonar.projectKey=${JOB_NAME} \
+                                -Dsonar.host.url=${SONARQUBE_URL} \
+                                -Dsonar.login=${SONARQUBE_TOKEN} \
+                                -Dsonar.qualitygate.wait=true
+                        '''
+                    }
+                    
+                    // 等待质量门禁结果
+                    timeout(time: 5, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
+                    }
+                    
+                    echo '✅ SonarQube 代码扫描完成'
+                }
+            }
+        }
+        
+        stage('依赖安全扫描') {
+            steps {
+                script {
+                    echo '开始依赖漏洞扫描...'
+                    
+                    // 使用 OWASP Dependency Check 扫描依赖漏洞
+                    sh '''
+                        if [ -f "pom.xml" ]; then
+                            mvn dependency-check:check \
+                                -DdependencyCheck.failOnCVSS=7.0
+                        elif [ -f "package.json" ]; then
+                            npm audit --audit-level=high || true
+                        fi
+                    '''
+                    
+                    echo '✅ 依赖安全扫描完成'
+                }
+            }
+        }
+        
+        stage('构建应用') {
+            steps {
+                script {
+                    echo '开始构建应用...'
+                    
+                    sh '''
+                        if [ -f "pom.xml" ]; then
+                            mvn clean package -DskipTests
+                        elif [ -f "package.json" ]; then
+                            npm install && npm run build
+                        elif [ -f "build.gradle" ]; then
+                            ./gradlew build -x test
+                        fi
+                    '''
+                    
+                    echo '✅ 应用构建完成'
+                }
+            }
+        }
+        
+        stage('自动化测试') {
+            parallel {
+                stage('单元测试') {
+                    steps {
+                        script {
+                            echo '执行单元测试...'
+                            
+                            sh '''
+                                mkdir -p ${TEST_RESULTS_DIR}
+                                
+                                if [ -f "pom.xml" ]; then
+                                    mvn test \
+                                        -Dmaven.test.failure.ignore=false \
+                                        -Dsurefire.reportsDirectory=${TEST_RESULTS_DIR}
+                                elif [ -f "package.json" ]; then
+                                    npm test -- --coverage --coverageDirectory=${COVERAGE_DIR}
+                                elif [ -f "build.gradle" ]; then
+                                    ./gradlew test
+                                fi
+                            '''
+                            
+                            // 发布测试结果报告
+                            junit "${TEST_RESULTS_DIR}/*.xml"
+                            
+                            // 发布代码覆盖率报告
+                            publishHTML([
+                                reportDir: "${COVERAGE_DIR}",
+                                reportFiles: 'index.html',
+                                reportName: '代码覆盖率报告'
+                            ])
+                            
+                            echo '✅ 单元测试完成'
+                        }
+                    }
+                }
+                
+                stage('集成测试') {
+                    steps {
+                        script {
+                            echo '执行集成测试...'
+                            
+                            sh '''
+                                if [ -f "pom.xml" ]; then
+                                    mvn verify -DskipUnitTests=true
+                                elif [ -f "package.json" ]; then
+                                    npm run test:integration
+                                fi
+                            '''
+                            
+                            echo '✅ 集成测试完成'
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('构建 Docker 镜像') {
+            steps {
+                script {
+                    echo '开始构建 Docker 镜像...'
+                    
+                    sh """
+                        docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} .
+                        docker tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+                    """
+                    
+                    echo '✅ Docker 镜像构建完成'
+                }
+            }
+        }
+        
+        stage('容器安全扫描 - Trivy') {
+            steps {
+                script {
+                    echo '开始容器镜像漏洞扫描...'
+                    
+                    // 使用 Trivy 扫描镜像漏洞
+                    sh """
+                        # 安装 Trivy (如果未安装)
+                        if ! command -v trivy &> /dev/null; then
+                            apt-get update && apt-get install -y wget apt-transport-https gnupg lsb-release
+                            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | apt-key add -
+                            echo "deb https://aquasecurity.github.io/trivy-repo/deb \$(lsb_release -sc) main" | tee -a /etc/apt/sources.list.d/trivy.list
+                            apt-get update && apt-get install -y trivy
+                        fi
+                        
+                        # 扫描镜像漏洞
+                        trivy image \
+                            --exit-code 1 \
+                            --severity HIGH,CRITICAL \
+                            --format table \
+                            --output trivy-report.txt \
+                            ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                        
+                        # 生成 JSON 格式报告
+                        trivy image \
+                            --severity HIGH,CRITICAL \
+                            --format json \
+                            --output trivy-report.json \
+                            ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    """
+                    
+                    // 归档扫描报告
+                    archiveArtifacts artifacts: 'trivy-report.*', allowEmptyArchive: true
+                    
+                    echo '✅ 容器安全扫描完成'
+                }
+            }
+        }
+        
+        stage('推送镜像') {
+            steps {
+                script {
+                    echo '推送镜像到仓库...'
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'docker-registry-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh """
+                            echo ${DOCKER_PASS} | docker login ${DOCKER_REGISTRY} -u ${DOCKER_USER} --password-stdin
+                            docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                            docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+                        """
+                    }
+                    
+                    echo '✅ 镜像推送完成'
+                }
+            }
+        }
+        
+        stage('部署应用') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    echo '部署应用到生产环境...'
+                    
+                    sh """
+                        docker-compose -f docker-compose.prod.yml up -d
+                    """
+                    
+                    echo '✅ 应用部署完成'
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // 清理工作空间
+            cleanWs()
+            
+            // 发送通知
+            echo '流水线执行完成'
+        }
+        
+        success {
+            echo '🎉 流水线执行成功!'
+            
+            // 可以添加成功通知,如邮件、钉钉、企业微信等
+        }
+        
+        failure {
+            echo '❌ 流水线执行失败!'
+            
+            // 发送失败通知
+            mail to: 'team@example.com',
+                 subject: "流水线失败: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "流水线执行失败,请检查: ${env.BUILD_URL}"
+        }
+        
+        unstable {
+            echo '⚠️ 流水线执行不稳定(测试失败但继续执行)'
+        }
+    }
+}
