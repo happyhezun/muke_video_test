@@ -1,0 +1,25 @@
+version: '3'
+services:
+  # 1. SkyWalking OAP (后端服务)
+  oap:
+    image: apache/skywalking-oap-server:9.0.0
+    container_name: sw-oap
+    environment:
+      SW_STORAGE: h2
+    ports:
+      - "11800:11800" # gRPC 端口
+      - "12800:12800" # HTTP 端口
+    # 注意：这里完全移除了 healthcheck，避免 405 错误干扰
+
+  # 2. SkyWalking UI (前端界面)
+  ui:
+    image: apache/skywalking-ui:9.0.0
+    container_name: sw-ui
+    ports:
+      - "8088:8080"
+    environment:
+      SW_OAP_ADDRESS: http://oap:12800
+    # 👇 修改点：改为简单的 depends_on，只要容器启动就开始连接
+    # UI 内部有重试机制，OAP 启动慢一点也没关系
+    depends_on:
+      - oap
