@@ -1,5 +1,12 @@
 server:
   port: 8081
+
 spring:
   application:
     name: trace-order
+  profiles:
+    active: @spring.profiles.active@
+
+# 通用配置(所有环境共享)
+app:
+  inventory-service-url: http://localhost:8082

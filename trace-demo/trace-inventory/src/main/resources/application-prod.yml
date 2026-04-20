@@ -1,0 +1,31 @@
+# 生产环境配置
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# 应用配置
+app:
+  environment: PROD
+  environment-name: 生产环境
+  
+# 日志级别
+logging:
+  level:
+    root: WARN
+    com.example.inventory: INFO
+
+# SkyWalking 配置
+skywalking:
+  agent:
+    service_name: trace-inventory-prod
+    collector:
+      backend_service: prod-skywalking.example.com:11800
+
+# 性能优化配置
+server:
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    connection-timeout: 2000

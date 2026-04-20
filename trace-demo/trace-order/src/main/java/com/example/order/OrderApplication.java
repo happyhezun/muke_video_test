@@ -1,5 +1,8 @@
 package com.example.order;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -10,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import javax.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.Set;
@@ -17,8 +21,27 @@ import java.util.Set;
 @SpringBootApplication
 public class OrderApplication {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderApplication.class);
+
+    // 注入环境标识
+    @Value("${app.environment:UNKNOWN}")
+    private String environment;
+    
+    @Value("${app.environment-name:未知环境}")
+    private String environmentName;
+
     public static void main(String[] args) {
         SpringApplication.run(OrderApplication.class, args);
+    }
+
+    /**
+     * 服务启动时打印醒目的环境标识
+     */
+    @PostConstruct
+    public void init() {
+        log.info("=================================================");
+        log.info("===  订单服务启动 - 当前环境: [{}] {}  ===", environment, environmentName);
+        log.info("=================================================");
     }
 
     @Bean
@@ -37,6 +60,7 @@ public class OrderApplication {
             
             System.out.println("==========================================================");
             System.out.println("Order Application is running!");
+            System.out.println("Environment: [" + environment + "] " + environmentName);
             System.out.println("Configured Port: " + configuredPort);
             System.out.println("Actual Local Port: " + port);
             System.out.println("Local Access: \t\thttp://localhost:" + port + "/order/create");

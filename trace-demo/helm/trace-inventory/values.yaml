@@ -1,0 +1,205 @@
+# Trace Order Service Helm Chart Values
+
+# 副本数量
+replicaCount: 1
+
+# 镜像配置
+image:
+  repository: trace-inventory
+  pullPolicy: IfNotPresent
+  # 覆盖镜像标签，默认为 Chart 的 appVersion
+  tag: "1.0.0"
+
+# 镜像拉取密钥（私有仓库需要）
+imagePullSecrets: []
+  # - name: registry-secret
+
+# 服务名称覆盖
+nameOverride: ""
+fullnameOverride: ""
+
+# 服务账号配置
+serviceAccount:
+  # 是否创建服务账号
+  create: true
+  # 自动挂载 API 凭证
+  automount: true
+  # 注释
+  annotations: {}
+  # 服务账号名称（如果 create=false）
+  name: ""
+
+# Pod 注释
+podAnnotations: {}
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "8081"
+
+# Pod 安全上下文
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# 容器安全上下文
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# 服务配置
+service:
+  type: ClusterIP
+  port: 8082
+  # NodePort 端口（当 type=NodePort 时有效）
+  nodePort: null
+  # 额外端口（如管理端口）
+  additionalPorts: []
+
+# Ingress 配置
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: inventory.trace-demo.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# 资源限制和请求
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# 自动扩缩容
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# 节点选择器
+nodeSelector: {}
+
+# 容忍度
+tolerations: []
+
+# 亲和性
+affinity: {}
+
+# 环境变量
+env:
+  # Spring Profile (dev/test/prod)
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  # JVM 参数
+  - name: JAVA_OPTS
+    value: "-Xms256m -Xmx512m"
+
+# ConfigMap 配置
+configMap:
+  # 是否创建 ConfigMap
+  create: true
+  # 应用配置
+  data:
+    application.yml: |
+      server:
+        port: 8082
+      
+      spring:
+        application:
+          name: trace-inventory
+      
+      app:
+        environment: DEV
+        environment-name: 开发环境
+      
+      logging:
+        level:
+          root: INFO
+          com.example.inventory: DEBUG
+
+# SkyWalking 配置
+skywalking:
+  enabled: false
+  agentVersion: "9.0.0"
+  collectorBackendService: "127.0.0.1:11800"
+  serviceName: "trace-inventory"
+  # Agent 挂载路径
+  agentPath: "/skywalking-agent"
+
+# 健康检查
+healthCheck:
+  enabled: true
+  path: /inventory/health
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
+# 启动探针（可选，用于慢启动应用）
+startupProbe:
+  enabled: false
+  path: /inventory/health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 30
+
+# 日志卷配置
+logVolume:
+  enabled: true
+  size: 5Gi
+  storageClassName: ""
+  accessMode: ReadWriteOnce
+
+# 额外卷
+extraVolumes: []
+  # - name: custom-config
+  #   configMap:
+  #     name: custom-config
+
+# 额外卷挂载
+extraVolumeMounts: []
+  # - name: custom-config
+  #   mountPath: /etc/custom
+
+# 初始化容器
+initContainers: []
+  # - name: init-myservice
+  #   image: busybox:1.28
+  #   command: ['sh', '-c', 'until nslookup myservice; do echo waiting for myservice; sleep 2; done']
+
+# Sidecar 容器
+sidecars: []
+  # - name: fluent-bit
+  #   image: fluent/fluent-bit:2.1.8
+  #   resources:
+  #     limits:
+  #       cpu: 100m
+  #       memory: 100Mi
+
+# 部署策略
+deploymentStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Pod 中断预算
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1

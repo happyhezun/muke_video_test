@@ -1,0 +1,13 @@
+apiVersion: v2
+name: trace-gateway
+description: A Helm chart for Trace Demo API Gateway Service
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - microservice
+  - gateway
+  - spring-cloud-gateway
+maintainers:
+  - name: Trace Demo Team
+    email: team@trace-demo.com

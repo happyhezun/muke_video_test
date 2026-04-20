@@ -1,0 +1,17 @@
+{{- if .Values.logVolume.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "trace-order.fullname" . }}-logs
+  labels:
+    {{- include "trace-order.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.logVolume.accessMode | default "ReadWriteOnce" }}
+  resources:
+    requests:
+      storage: {{ .Values.logVolume.size | default "5Gi" }}
+  {{- if .Values.logVolume.storageClassName }}
+  storageClassName: {{ .Values.logVolume.storageClassName }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,23 @@
+# 测试环境配置
+spring:
+  config:
+    activate:
+      on-profile: test
+
+# 应用配置
+app:
+  environment: TEST
+  environment-name: 测试环境
+  
+# 日志级别
+logging:
+  level:
+    root: INFO
+    com.example.inventory: INFO
+
+# SkyWalking 配置
+skywalking:
+  agent:
+    service_name: trace-inventory-test
+    collector:
+      backend_service: test-skywalking.example.com:11800

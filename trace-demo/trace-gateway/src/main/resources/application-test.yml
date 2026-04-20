@@ -1,0 +1,40 @@
+# 测试环境配置
+spring:
+  config:
+    activate:
+      on-profile: test
+
+# 应用配置
+app:
+  order-service-url: http://trace-order:8081
+  inventory-service-url: http://trace-inventory:8082
+  environment: TEST
+  environment-name: 测试环境
+  
+# 日志级别
+logging:
+  level:
+    root: INFO
+    com.example.gateway: INFO
+    org.springframework.cloud.gateway: INFO
+
+# SkyWalking 配置
+skywalking:
+  agent:
+    service_name: trace-gateway-test
+    collector:
+      backend_service: test-skywalking.example.com:11800
+
+# 网关路由配置
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: order-service
+          uri: http://trace-order:8081
+          predicates:
+            - Path=/order/**
+        - id: inventory-service
+          uri: http://trace-inventory:8082
+          predicates:
+            - Path=/inventory/**

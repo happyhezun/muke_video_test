@@ -1,18 +1,41 @@
 package com.example.gateway;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 
+import javax.annotation.PostConstruct;
+
 @SpringBootApplication
 public class GatewayApplication {
+
+    private static final Logger log = LoggerFactory.getLogger(GatewayApplication.class);
+
+    // 注入环境标识
+    @Value("${app.environment:UNKNOWN}")
+    private String environment;
+    
+    @Value("${app.environment-name:未知环境}")
+    private String environmentName;
 
     public static void main(String[] args) {
         SpringApplication.run(GatewayApplication.class, args);
     }
 
+    /**
+     * 服务启动时打印醒目的环境标识
+     */
+    @PostConstruct
+    public void init() {
+        log.info("=================================================");
+        log.info("===  网关服务启动 - 当前环境: [{}] {}  ===", environment, environmentName);
+        log.info("=================================================");
+    }
 
     /**
      * 配置路由规则

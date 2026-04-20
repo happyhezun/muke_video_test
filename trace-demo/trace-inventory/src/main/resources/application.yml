@@ -1,5 +1,12 @@
 server:
   port: 8082
+
 spring:
   application:
     name: trace-inventory
+  profiles:
+    active: @spring.profiles.active@
+
+# 通用配置(所有环境共享)
+app:
+  mock-inventory-enabled: true

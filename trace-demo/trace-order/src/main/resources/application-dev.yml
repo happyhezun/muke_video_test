@@ -1,0 +1,25 @@
+# 开发环境配置
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# 应用配置
+app:
+  inventory-service-url: http://localhost:8082
+  timeout: 5000
+  environment: DEV
+  environment-name: 开发环境
+  
+# 日志级别
+logging:
+  level:
+    root: INFO
+    com.example.order: DEBUG
+
+# SkyWalking 配置(可选)
+skywalking:
+  agent:
+    service_name: trace-order-dev
+    collector:
+      backend_service: 127.0.0.1:11800

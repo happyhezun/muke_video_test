@@ -1,0 +1,396 @@
+# GitLab CI/CD 配置文件
+# 支持多环境自动化部署：dev -> test -> prod
+
+stages:
+  - build
+  - test
+  - package
+  - deploy-dev
+  - deploy-test
+  - deploy-prod
+
+# 全局变量
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  DOCKER_TLS_CERTDIR: "/certs"
+  REGISTRY_URL: "${CI_REGISTRY}"
+  IMAGE_TAG: "${CI_COMMIT_SHORT_SHA}"
+  HELM_NAMESPACE: "trace-demo"
+  
+# 缓存 Maven 依赖
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+# ==================== Build 阶段 ====================
+build-order:
+  stage: build
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 构建订单服务 =========="
+    - cd trace-order
+    - mvn clean compile -DskipTests
+  artifacts:
+    paths:
+      - trace-order/target/
+    expire_in: 1 hour
+  only:
+    - branches
+  tags:
+    - docker
+
+build-inventory:
+  stage: build
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 构建库存服务 =========="
+    - cd trace-inventory
+    - mvn clean compile -DskipTests
+  artifacts:
+    paths:
+      - trace-inventory/target/
+    expire_in: 1 hour
+  only:
+    - branches
+  tags:
+    - docker
+
+build-gateway:
+  stage: build
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 构建网关服务 =========="
+    - cd trace-gateway
+    - mvn clean compile -DskipTests
+  artifacts:
+    paths:
+      - trace-gateway/target/
+    expire_in: 1 hour
+  only:
+    - branches
+  tags:
+    - docker
+
+# ==================== Test 阶段 ====================
+test-order:
+  stage: test
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 运行订单服务单元测试 =========="
+    - cd trace-order
+    - mvn test
+  coverage: '/Coverage: \d+\.\d+/'
+  artifacts:
+    reports:
+      junit: trace-order/target/surefire-reports/TEST-*.xml
+    when: always
+  only:
+    - branches
+  tags:
+    - docker
+
+test-inventory:
+  stage: test
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 运行库存服务单元测试 =========="
+    - cd trace-inventory
+    - mvn test
+  coverage: '/Coverage: \d+\.\d+/'
+  artifacts:
+    reports:
+      junit: trace-inventory/target/surefire-reports/TEST-*.xml
+    when: always
+  only:
+    - branches
+  tags:
+    - docker
+
+test-gateway:
+  stage: test
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 运行网关服务单元测试 =========="
+    - cd trace-gateway
+    - mvn test
+  coverage: '/Coverage: \d+\.\d+/'
+  artifacts:
+    reports:
+      junit: trace-gateway/target/surefire-reports/TEST-*.xml
+    when: always
+  only:
+    - branches
+  tags:
+    - docker
+
+# ==================== Package 阶段 ====================
+package-order:
+  stage: package
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 打包订单服务 =========="
+    - cd trace-order
+    - mvn clean package -DskipTests -P${CI_COMMIT_BRANCH:-dev}
+  artifacts:
+    paths:
+      - trace-order/target/*.jar
+    expire_in: 1 week
+  only:
+    - branches
+  tags:
+    - docker
+
+package-inventory:
+  stage: package
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 打包库存服务 =========="
+    - cd trace-inventory
+    - mvn clean package -DskipTests -P${CI_COMMIT_BRANCH:-dev}
+  artifacts:
+    paths:
+      - trace-inventory/target/*.jar
+    expire_in: 1 week
+  only:
+    - branches
+  tags:
+    - docker
+
+package-gateway:
+  stage: package
+  image: maven:3.8.6-jdk-8
+  script:
+    - echo "========== 打包网关服务 =========="
+    - cd trace-gateway
+    - mvn clean package -DskipTests -P${CI_COMMIT_BRANCH:-dev}
+  artifacts:
+    paths:
+      - trace-gateway/target/*.jar
+    expire_in: 1 week
+  only:
+    - branches
+  tags:
+    - docker
+
+# ==================== Docker Build & Push ====================
+docker-build-order:
+  stage: package
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - echo "========== 构建并推送订单服务镜像 =========="
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - cd trace-order
+    - docker build -t $REGISTRY_URL/trace-order:$IMAGE_TAG .
+    - docker tag $REGISTRY_URL/trace-order:$IMAGE_TAG $REGISTRY_URL/trace-order:latest
+    - docker push $REGISTRY_URL/trace-order:$IMAGE_TAG
+    - docker push $REGISTRY_URL/trace-order:latest
+  only:
+    - branches
+  tags:
+    - docker
+
+docker-build-inventory:
+  stage: package
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - echo "========== 构建并推送库存服务镜像 =========="
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - cd trace-inventory
+    - docker build -t $REGISTRY_URL/trace-inventory:$IMAGE_TAG .
+    - docker tag $REGISTRY_URL/trace-inventory:$IMAGE_TAG $REGISTRY_URL/trace-inventory:latest
+    - docker push $REGISTRY_URL/trace-inventory:$IMAGE_TAG
+    - docker push $REGISTRY_URL/trace-inventory:latest
+  only:
+    - branches
+  tags:
+    - docker
+
+docker-build-gateway:
+  stage: package
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - echo "========== 构建并推送网关服务镜像 =========="
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - cd trace-gateway
+    - docker build -t $REGISTRY_URL/trace-gateway:$IMAGE_TAG .
+    - docker tag $REGISTRY_URL/trace-gateway:$IMAGE_TAG $REGISTRY_URL/trace-gateway:latest
+    - docker push $REGISTRY_URL/trace-gateway:$IMAGE_TAG
+    - docker push $REGISTRY_URL/trace-gateway:latest
+  only:
+    - branches
+  tags:
+    - docker
+
+# ==================== Deploy Dev ====================
+deploy-dev:
+  stage: deploy-dev
+  image: alpine/helm:3.9.0
+  script:
+    - echo "========== 部署到开发环境 =========="
+    - apk add --no-cache curl
+    - helm upgrade --install trace-inventory ./helm/trace-inventory \
+        --namespace $HELM_NAMESPACE \
+        --create-namespace \
+        -f helm/trace-inventory/values-dev.yaml \
+        --set image.repository=$REGISTRY_URL/trace-inventory \
+        --set image.tag=$IMAGE_TAG
+    - helm upgrade --install trace-order ./helm/trace-order \
+        --namespace $HELM_NAMESPACE \
+        -f helm/trace-order/values-dev.yaml \
+        --set image.repository=$REGISTRY_URL/trace-order \
+        --set image.tag=$IMAGE_TAG
+    - helm upgrade --install trace-gateway ./helm/trace-gateway \
+        --namespace $HELM_NAMESPACE \
+        -f helm/trace-gateway/values-dev.yaml \
+        --set image.repository=$REGISTRY_URL/trace-gateway \
+        --set image.tag=$IMAGE_TAG
+    - echo "等待Pod就绪..."
+    - sleep 30
+    - echo "验证部署..."
+    - kubectl get pods -n $HELM_NAMESPACE || true
+  environment:
+    name: development
+    url: http://dev.trace-demo.example.com
+  only:
+    - develop
+  tags:
+    - kubernetes
+
+# ==================== Deploy Test ====================
+deploy-test:
+  stage: deploy-test
+  image: alpine/helm:3.9.0
+  script:
+    - echo "========== 部署到测试环境 =========="
+    - apk add --no-cache curl
+    - helm upgrade --install trace-inventory ./helm/trace-inventory \
+        --namespace $HELM_NAMESPACE \
+        --create-namespace \
+        -f helm/trace-inventory/values-test.yaml \
+        --set image.repository=$REGISTRY_URL/trace-inventory \
+        --set image.tag=$IMAGE_TAG
+    - helm upgrade --install trace-order ./helm/trace-order \
+        --namespace $HELM_NAMESPACE \
+        -f helm/trace-order/values-test.yaml \
+        --set image.repository=$REGISTRY_URL/trace-order \
+        --set image.tag=$IMAGE_TAG
+    - helm upgrade --install trace-gateway ./helm/trace-gateway \
+        --namespace $HELM_NAMESPACE \
+        -f helm/trace-gateway/values-test.yaml \
+        --set image.repository=$REGISTRY_URL/trace-gateway \
+        --set image.tag=$IMAGE_TAG
+    - echo "等待Pod就绪..."
+    - sleep 30
+    - echo "验证部署..."
+    - kubectl get pods -n $HELM_NAMESPACE || true
+  environment:
+    name: testing
+    url: http://test.trace-demo.example.com
+  only:
+    - release/*
+  when: manual
+  tags:
+    - kubernetes
+
+# ==================== Deploy Prod ====================
+deploy-prod:
+  stage: deploy-prod
+  image: alpine/helm:3.9.0
+  script:
+    - echo "========== 部署到生产环境 =========="
+    - apk add --no-cache curl
+    - helm upgrade --install trace-inventory ./helm/trace-inventory \
+        --namespace $HELM_NAMESPACE \
+        --create-namespace \
+        -f helm/trace-inventory/values-prod.yaml \
+        --set image.repository=$REGISTRY_URL/trace-inventory \
+        --set image.tag=$IMAGE_TAG
+    - helm upgrade --install trace-order ./helm/trace-order \
+        --namespace $HELM_NAMESPACE \
+        -f helm/trace-order/values-prod.yaml \
+        --set image.repository=$REGISTRY_URL/trace-order \
+        --set image.tag=$IMAGE_TAG
+    - helm upgrade --install trace-gateway ./helm/trace-gateway \
+        --namespace $HELM_NAMESPACE \
+        -f helm/trace-gateway/values-prod.yaml \
+        --set image.repository=$REGISTRY_URL/trace-gateway \
+        --set image.tag=$IMAGE_TAG
+    - echo "等待Pod就绪..."
+    - sleep 60
+    - echo "验证部署..."
+    - kubectl get pods -n $HELM_NAMESPACE
+    - echo "健康检查..."
+    - curl -f http://trace-gateway.$HELM_NAMESPACE.svc.cluster.local:8080/health || exit 1
+  environment:
+    name: production
+    url: http://prod.trace-demo.example.com
+  only:
+    - main
+  when: manual
+  tags:
+    - kubernetes
+
+# ==================== 回滚任务 ====================
+rollback-dev:
+  stage: deploy-dev
+  image: alpine/helm:3.9.0
+  script:
+    - echo "========== 回滚开发环境 =========="
+    - helm rollback trace-order -n $HELM_NAMESPACE
+    - helm rollback trace-inventory -n $HELM_NAMESPACE
+    - helm rollback trace-gateway -n $HELM_NAMESPACE
+  environment:
+    name: development
+    action: stop
+  only:
+    - develop
+  when: manual
+  allow_failure: true
+  tags:
+    - kubernetes
+
+rollback-prod:
+  stage: deploy-prod
+  image: alpine/helm:3.9.0
+  script:
+    - echo "========== 回滚生产环境 =========="
+    - helm rollback trace-order -n $HELM_NAMESPACE
+    - helm rollback trace-inventory -n $HELM_NAMESPACE
+    - helm rollback trace-gateway -n $HELM_NAMESPACE
+  environment:
+    name: production
+    action: stop
+  only:
+    - main
+  when: manual
+  allow_failure: true
+  tags:
+    - kubernetes
+
+# ==================== 清理旧镜像 ====================
+cleanup-images:
+  stage: package
+  image: docker:20.10.16
+  script:
+    - echo "========== 清理旧Docker镜像 =========="
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - |
+      # 保留最近5个版本的镜像
+      for service in trace-order trace-inventory trace-gateway; do
+        echo "清理 $service 的旧镜像..."
+        # 这里可以调用Registry API删除旧镜像
+        echo "跳过实际删除（需要Registry API权限）"
+      done
+  only:
+    - main
+  when: manual
+  allow_failure: true
+  tags:
+    - docker

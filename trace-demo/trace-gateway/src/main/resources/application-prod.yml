@@ -1,0 +1,44 @@
+# 生产环境配置
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# 应用配置
+app:
+  order-service-url: http://trace-order:8081
+  inventory-service-url: http://trace-inventory:8082
+  environment: PROD
+  environment-name: 生产环境
+  
+# 日志级别
+logging:
+  level:
+    root: WARN
+    com.example.gateway: INFO
+    org.springframework.cloud.gateway: WARN
+
+# SkyWalking 配置
+skywalking:
+  agent:
+    service_name: trace-gateway-prod
+    collector:
+      backend_service: prod-skywalking.example.com:11800
+
+# 网关路由配置
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: order-service
+          uri: http://trace-order:8081
+          predicates:
+            - Path=/order/**
+        - id: inventory-service
+          uri: http://trace-inventory:8082
+          predicates:
+            - Path=/inventory/**
+      # 性能优化
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 5s

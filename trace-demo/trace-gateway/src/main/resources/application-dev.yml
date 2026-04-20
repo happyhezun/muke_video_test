@@ -1,0 +1,40 @@
+# 开发环境配置
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# 应用配置
+app:
+  order-service-url: http://localhost:8081
+  inventory-service-url: http://localhost:8082
+  environment: DEV
+  environment-name: 开发环境
+  
+# 日志级别
+logging:
+  level:
+    root: INFO
+    com.example.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+
+# SkyWalking 配置(可选)
+skywalking:
+  agent:
+    service_name: trace-gateway-dev
+    collector:
+      backend_service: 127.0.0.1:11800
+
+# 网关路由配置
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: order-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/order/**
+        - id: inventory-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/inventory/**

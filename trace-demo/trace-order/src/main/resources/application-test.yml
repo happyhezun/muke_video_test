@@ -1,0 +1,25 @@
+# 测试环境配置
+spring:
+  config:
+    activate:
+      on-profile: test
+
+# 应用配置
+app:
+  inventory-service-url: http://trace-inventory:8082
+  timeout: 3000
+  environment: TEST
+  environment-name: 测试环境
+  
+# 日志级别
+logging:
+  level:
+    root: INFO
+    com.example.order: INFO
+
+# SkyWalking 配置
+skywalking:
+  agent:
+    service_name: trace-order-test
+    collector:
+      backend_service: test-skywalking.example.com:11800

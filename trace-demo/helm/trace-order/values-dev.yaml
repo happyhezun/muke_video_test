@@ -1,0 +1,57 @@
+# 开发环境配置示例
+
+replicaCount: 1
+
+image:
+  repository: trace-order
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: JAVA_OPTS
+    value: "-Xms256m -Xmx512m"
+
+service:
+  type: ClusterIP
+  port: 8081
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+skywalking:
+  enabled: true
+  collectorBackendService: "skywalking-oap.skywalking:11800"
+  serviceName: "trace-order-dev"
+
+configMap:
+  create: true
+  data:
+    application.yml: |
+      server:
+        port: 8081
+      
+      spring:
+        application:
+          name: trace-order
+      
+      app:
+        inventory-service-url: http://trace-inventory:8082
+        environment: DEV
+        environment-name: 开发环境
+        timeout: 5000
+      
+      logging:
+        level:
+          root: INFO
+          com.example.order: DEBUG
+
+logVolume:
+  enabled: true
+  size: 5Gi

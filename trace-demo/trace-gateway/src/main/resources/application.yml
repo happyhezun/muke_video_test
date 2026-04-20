@@ -1,5 +1,13 @@
 server:
   port: 8080
+
 spring:
   application:
     name: trace-gateway
+  profiles:
+    active: @spring.profiles.active@
+
+# 通用路由配置(所有环境共享)
+app:
+  order-service-url: http://localhost:8081
+  inventory-service-url: http://localhost:8082

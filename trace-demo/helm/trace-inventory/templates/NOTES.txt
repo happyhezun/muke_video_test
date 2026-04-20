@@ -1,0 +1,67 @@
+===================================================================
+  Trace Order Service 已成功部署！
+===================================================================
+
+📦 应用信息:
+  名称: {{ include "trace-order.fullname" . }}
+  命名空间: {{ .Release.Namespace }}
+  版本: {{ .Chart.AppVersion }}
+
+🔗 访问方式:
+
+{{- if .Values.ingress.enabled }}
+  1️⃣  Ingress 访问:
+  {{- range $host := .Values.ingress.hosts }}
+     http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}
+  {{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  1️⃣  NodePort 访问:
+     export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "trace-order.fullname" . }})
+     export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+     echo http://$NODE_IP:$NODE_PORT/order/health
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  1️⃣  LoadBalancer 访问:
+     注意: 获取外部IP可能需要几分钟时间
+     执行以下命令查看状态:
+       kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "trace-order.fullname" . }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  1️⃣  ClusterIP 访问 (仅集群内):
+     export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "trace-order.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+     export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+     echo "Visit http://127.0.0.1:8081/order/health to use your application"
+     kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8081:$CONTAINER_PORT
+{{- end }}
+
+📊 健康检查:
+  curl http://<service-ip>:{{ .Values.service.port }}/order/health
+
+🌍 环境配置:
+  Spring Profile: {{ index .Values.env 0 "value" }}
+  {{- if .Values.skywalking.enabled }}
+  SkyWalking: ✅ 已启用
+    Collector: {{ .Values.skywalking.collectorBackendService }}
+    Service Name: {{ .Values.skywalking.serviceName }}
+  {{- else }}
+  SkyWalking: ❌ 未启用
+  {{- end }}
+
+📝 常用命令:
+
+  # 查看 Pod 状态
+  kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "trace-order.name" . }}"
+
+  # 查看日志
+  kubectl logs --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "trace-order.name" . }}" -f
+
+  # 查看服务详情
+  kubectl describe svc {{ include "trace-order.fullname" . }} --namespace {{ .Release.Namespace }}
+
+  # 端口转发到本地
+  kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "trace-order.fullname" . }} 8081:{{ .Values.service.port }}
+
+  # 卸载应用
+  helm uninstall {{ .Release.Name }} --namespace {{ .Release.Namespace }}
+
+===================================================================
+  祝您使用愉快！🎉
+===================================================================
