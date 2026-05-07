@@ -1,0 +1,129 @@
+name: Zone Main Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      zone:
+        description: 'Which Zone?'
+        required: true
+        default: 'a'
+      include_node_modules:
+        description: 'Include node_modules in deployment?'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.21.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.21.1
+          cache: pnpm
+          cache-dependency-path: |
+            functions/pnpm-lock.yaml
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SSH_PRIVATE_KEY }}
+            ${{ secrets.AREA_SSH_PRIVATE_KEY }}
+
+      - name: Build
+        run: |
+          cd functions
+          pnpm install --no-frozen-lockfile
+          pnpm run build:main
+
+      - name: Deploy to server
+        run: |
+          cd functions
+          tar -zcf dist.tar.gz dist/apps/main-server
+          tar -zcf config.tar.gz dist/apps/common/config
+          
+          # Only package node_modules if include_node_modules is true
+          if [ "${{ github.event.inputs.include_node_modules }}" = "true" ]; then
+            tar -zcf node_modules.tar.gz node_modules
+            scp -o StrictHostKeyChecking=no dist.tar.gz config.tar.gz node_modules.tar.gz root@${{ vars.AREA_HOST_NAME }}:/opt/node-app/stake/functions
+          else
+            scp -o StrictHostKeyChecking=no dist.tar.gz config.tar.gz root@${{ vars.AREA_HOST_NAME }}:/opt/node-app/stake/functions
+          fi
+
+      - name: Start and Health Check
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ vars.AREA_HOST_NAME }} << 'ENDSSH'
+            cd /opt/node-app/stake/functions || exit
+            rm -rf ./dist/apps/main-server
+            rm -rf ./dist/apps/common/config
+            tar -zxf dist.tar.gz
+            tar -zxf config.tar.gz
+            
+            # Only extract node_modules if include_node_modules is true
+            if [ "${{ github.event.inputs.include_node_modules }}" = "true" ]; then
+              rm -rf ./node_modules
+              tar -zxf node_modules.tar.gz
+            fi
+
+            git fetch origin
+            git reset --hard origin/master
+            pnpm install --no-frozen-lockfile
+            pnpm run _pre
+            mkdir -p ./dist/apps/common/geoip
+            cp -n ./apps/common/geoip/* ./dist/apps/common/geoip
+
+            output=$(curl -s 'http://10.148.0.2:54321/get_zone_prod_group_${{ github.event.inputs.zone }}')
+            group=$(echo "$output" | cut -d '|' -f 1);
+            port=$(echo "$output" | cut -d '|' -f 2);
+            echo "Group is: $group"
+            echo "Port is: $port"
+
+            forever stop "$group-${{ github.event.inputs.zone }}"
+            # 杀死监听指定端口的进程
+            echo "[start] 检查并杀死监听端口 $port 的进程"
+            lsof -t -i:$port -sTCP:LISTEN | xargs -r kill -9
+            scripts/start-forever.sh main-server "$group-${{ github.event.inputs.zone }}" $port ${{ github.event.inputs.zone }}
+            sleep 30
+            # 健康检查
+            attempts=0
+            max_health_check_attempts=10
+            while [ $attempts -lt $max_health_check_attempts ]; do
+              if curl -f http://10.148.0.21:${port}/game-zone-${{ github.event.inputs.zone }}/nest-api/test/health; then
+                echo "Health check passed"
+                break
+              else
+                echo "Health check failed, retrying in 5 seconds..."
+                sleep 5
+                attempts=$((attempts+1))
+              fi
+            done
+
+            if [ $attempts -eq $max_health_check_attempts ]; then
+              echo "Health check failed after $max_health_check_attempts attempts, exiting"
+              exit 1
+            fi
+
+            # 只有健康检查通过才执行以下操作
+            echo "Health check passed, proceeding with nginx swap"
+            echo "== before nginx swap =="
+            ssh -n -o StrictHostKeyChecking=no root@${{ vars.HOST_NAME }} "cd /etc/nginx/group/ && bash swap_group.sh zone_${{ github.event.inputs.zone }} && ls /etc/nginx/group/zone_${{ github.event.inputs.zone }}_*.conf.bak | awk -F'[_.]' '{print \$3 \"|\" \$4}' > /opt/get_zone_prod_group_${{ github.event.inputs.zone }}.txt"
+            ssh_exit=$?
+            echo "nginx swap ssh exit code: $ssh_exit"
+            echo "== after nginx swap =="
+            # 重启旧服务
+            echo "wait 5s"
+            sleep 5
+            cd /opt/node-app/stake/functions || exit
+            output=$(curl -s 'http://10.148.0.2:54321/get_zone_prod_group_${{ github.event.inputs.zone }}')
+            group=$(echo "$output" | cut -d '|' -f 1);
+            echo "Group is: $group"
+            forever stop "$group-${{ github.event.inputs.zone }}"
+          ENDSSH
+      
