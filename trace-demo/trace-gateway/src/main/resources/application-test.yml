@@ -1,8 +1,19 @@
-# 测试环境配置
+# ✅ 正确示范：所有 spring 配置都合并到一个节点下
 spring:
   config:
     activate:
       on-profile: test
+  cloud:
+    gateway:
+      routes:
+        - id: order-service
+          uri: http://trace-order:8081
+          predicates:
+            - Path=/order/**
+        - id: inventory-service
+          uri: http://trace-inventory:8082
+          predicates:
+            - Path=/inventory/**
 
 # 应用配置
 app:
@@ -24,17 +35,3 @@ skywalking:
     service_name: trace-gateway-test
     collector:
       backend_service: test-skywalking.example.com:11800
-
-# 网关路由配置
-spring:
-  cloud:
-    gateway:
-      routes:
-        - id: order-service
-          uri: http://trace-order:8081
-          predicates:
-            - Path=/order/**
-        - id: inventory-service
-          uri: http://trace-inventory:8082
-          predicates:
-            - Path=/inventory/**
